@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     }
     cout << endl
          << "Network is connected"<<endl;
+    cout<<"published";
 
 
-         
 }
