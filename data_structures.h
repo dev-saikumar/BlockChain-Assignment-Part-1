@@ -1,12 +1,10 @@
-#include <bits/stdc++.h>
 using namespace std;
 
 class Transaction
 {
 public:
-    int from_id;
-    vector<int> to_id;
-    vector<double> amount;
+    int from_id, to_id;
+    double amount, remaining;
 };
 
 class Block
@@ -20,18 +18,12 @@ class Node
 {
 public:
     int id;
+    bool cpu, link_speed;
     vector<Node *> edges;
+    vector<Block *> blocks;
     Node(int id)
     {
         this->id = id;
-    }
-};
-
-struct compare
-{
-    bool operator()(Event &a, Event &b)
-    {
-        return a.timestamp > b.timestamp;
     }
 };
 
@@ -40,14 +32,22 @@ class Event
 public:
     // 0 -> trans generated, 1 -> trans received, 2 -> block generated, 3 -> block recived
     int type, node;
-    long timestamp;
+    double time;
     Transaction *t;
     Block *b;
 
-    Event(int type, int node, long timestamp)
+    Event(int type, int node, double time)
     {
         this->type = type;
         this->node = node;
-        this->timestamp = timestamp;
+        this->time = time;
+    }
+};
+
+struct eventCompare
+{
+    bool operator()(Event &a, Event &b)
+    {
+        return a.time > b.time;
     }
 };
