@@ -1,6 +1,6 @@
 using namespace std;
 
-string uuid()
+string generateUID()
 {
     const char *chars = "0123456789abcdef";
     string res;
@@ -22,6 +22,8 @@ double randomExponential(int mean)
     double r = log(1 - uniform) * (-mean);
     return r;
 }
+
+// --------------------- Graph Algo ---------------------
 
 bool checkForConnectivity(vector<Node *> &miners)
 {
@@ -57,7 +59,7 @@ void generateGraph(vector<Node *> &miners, int n)
 
     while (!connected)
     {
-        cout << "checkForConnectivity" << endl;
+        // cout << "checkForConnectivity" << endl;
         for (int i = 0; i < n; i++)
         {
             int no_of_connections = randomUniform(4, 8);
@@ -76,12 +78,16 @@ void generateGraph(vector<Node *> &miners, int n)
                     random_miners.insert(r);
                     miners[i]->edges.push_back(miners[r]);
                     miners[r]->edges.push_back(miners[i]);
+
+                    int propDelay = randomUniform(10, 500);
+                    miners[i]->propDelay.push_back(propDelay);
+                    miners[r]->propDelay.push_back(propDelay);
                 }
                 else
                     counter++;
             }
         }
-        cout << "loop" << endl;
+        // cout << "loop" << endl;
         if (!checkForConnectivity(miners))
         {
             for (auto it : miners)
