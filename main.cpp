@@ -1,52 +1,9 @@
 #include <bits/stdc++.h>
-#include <stdio.h>
+#include "structures.h"
+
 using namespace std;
 
-int n, z0, z1;
-
-class Transaction
-{
-public:
-    int from_id;
-    vector<int> to_ids;
-    vector<double> amount;
-};
-
-class Block
-{
-public:
-    Block *previous_block;
-    vector<Transaction *> transactions;
-};
-
-class Node
-{
-public:
-    int id;
-    bool cpu, link_speed;
-    vector<Node *> edges;
-    vector<Block *> blocks;
-    Node(int id)
-    {
-        this->id = id;
-    }
-};
-
-class Event
-{
-public:
-    double time;
-};
-
-class Broadcast : public Event
-{
-public:
-    int b;
-    Broadcast(double time)
-    {
-        this->time = time;
-    }
-};
+int n;
 
 bool checkForConnectivity(vector<Node *> &miners)
 {
@@ -81,78 +38,91 @@ int generateRandom(int min, int max)
     return (rand() % (max - min + 1)) + min;
 }
 
+double randomExponential(int mean)
+{
+    double uniform = double(rand()) / RAND_MAX;
+    double r = log(1 - uniform) * (-mean);
+    return r;
+}
+
+void startSim()
+{
+    priority_queue<Event, vector<Event>, compare> q;
+
+    // initial transactions
+    for (int i = 0; i < n; i++)
+    {
+        // transaction will be generated when the event is processed
+        long timestamp = long(randomExponential(1) * 1000); // converting to millisecond
+        q.push({0, i, timestamp});
+    }
+
+    // block generation
+    for (int i = 0; i < n; i++)
+    {
+    }
+
+    while (!q.empty())
+    {
+        Event e = q.top();
+        q.pop();
+
+        cout << e.timestamp << endl;
+    }
+}
+
 int main(int argc, char **argv)
 {
     cout << argv[0] << endl;
-    bool connected = false;
-    // argc=4;//argc
-    if (argc < 4)
+    // argc=2;
+    if (argc < 2)
     {
-        cout << "Invalid Arguments;Usage: ./main n z0 z1" << endl;
+        cout << "Usage: Invalid Argument" << endl;
         exit(1);
     }
     else
     {
-
+        // n=40;
         n = stoi(argv[1]);
-        z0 = stoi(argv[2]);
-        z1 = stoi(argv[3]);
+
+        if (n < 9)
+        {
+            cout << "Atleast 9 nodes must be there." << endl;
+            exit(1);
+        }
     }
     srand(time(NULL));
     vector<Node *> miners;
+
     for (int i = 0; i < n; i++)
         miners.push_back(new Node(i));
     cout << "11";
-    while (!connected)
+    while (!checkForConnectivity(miners))
     {
         cout << "checkForConnectivity" << endl;
         for (int i = 0; i < n; i++)
         {
             int no_of_connections = generateRandom(4, 8);
-
             unordered_set<int> random_miners;
-            for (auto it : miners[i]->edges)
-            {
-                random_miners.insert(it->id);
-            }
-            int counter = 0;
-            while (counter < n && random_miners.size() < no_of_connections)
+            while (random_miners.size() < no_of_connections)
             {
                 int r = generateRandom(0, n - 1);
-                if (r != miners[i]->id && miners[r]->edges.size() < 8 && random_miners.find(r) == random_miners.end())
+                if (r != miners[i]->id && random_miners.find(r) == random_miners.end())
                 {
                     random_miners.insert(r);
-                    miners[i]->edges.push_back(miners[r]);
-                    miners[r]->edges.push_back(miners[i]);
                 }
-                else
-                    counter++;
             }
-        }
-        cout << "loop";
-        if (!checkForConnectivity(miners))
-        {
-            for (auto it : miners)
+            for (auto it : random_miners)
             {
-                it->edges.clear();
+                cout << it << "-";
+                miners[i]->edges.push_back(miners[it]);
             }
+            cout << endl;
         }
-        else
-            connected = true;
     }
-
-    for (auto it : miners)
-    {
-        for (auto it2 : it->edges)
-            cout << it2->id << " ";
-        cout << endl;
-    }
-
     cout << endl
          << "Network is connected" << endl;
+    cout << "published";
 
-    priority_queue<Event *>
-        event_queue;
-    event_queue.push(new Broadcast(10));
-    cout << "Hello World";
+    startSim();
 }
