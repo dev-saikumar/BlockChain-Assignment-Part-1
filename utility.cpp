@@ -1,3 +1,4 @@
+#include <bits/stdc++.h>
 using namespace std;
 
 string generateUID()
@@ -5,7 +6,7 @@ string generateUID()
     const char *chars = "0123456789abcdef";
     string res;
 
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < 16; i++)
         res += chars[rand() % 16];
 
     return res;
@@ -16,7 +17,7 @@ int randomUniform(int min, int max)
     return (rand() % (max - min + 1)) + min;
 }
 
-double randomExponential(int mean)
+double randomExponential(double mean)
 {
     double uniform = double(rand()) / RAND_MAX;
     double r = log(1 - uniform) * (-mean);
@@ -59,7 +60,6 @@ void generateGraph(vector<Node *> &miners, int n)
 
     while (!connected)
     {
-        // cout << "checkForConnectivity" << endl;
         for (int i = 0; i < n; i++)
         {
             int no_of_connections = randomUniform(4, 8);
@@ -79,6 +79,7 @@ void generateGraph(vector<Node *> &miners, int n)
                     miners[i]->edges.push_back(miners[r]);
                     miners[r]->edges.push_back(miners[i]);
 
+                    // setting pij
                     int propDelay = randomUniform(10, 500);
                     miners[i]->propDelay.push_back(propDelay);
                     miners[r]->propDelay.push_back(propDelay);
@@ -87,7 +88,7 @@ void generateGraph(vector<Node *> &miners, int n)
                     counter++;
             }
         }
-        // cout << "loop" << endl;
+
         if (!checkForConnectivity(miners))
         {
             for (auto it : miners)
