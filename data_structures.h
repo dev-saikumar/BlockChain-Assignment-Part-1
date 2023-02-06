@@ -5,10 +5,9 @@ class Transaction
 {
 public:
     string txnID;
-    int from_id, to_id;
-    double amount;
+    int from_id, to_id, amount;
 
-    Transaction(string txnID, int from_id, int to_id) : txnID(txnID), from_id(from_id), to_id(to_id) {}
+    Transaction(string txnID, int from_id, int to_id, int amount) : txnID(txnID), from_id(from_id), to_id(to_id), amount(amount) {}
 };
 
 class Block
@@ -26,10 +25,10 @@ class BlockChain
 {
 public:
     unordered_map<string, Block *> allBlocks;
-    Block *lastBlock;
-
     unordered_set<string> pendingTxns;
     unordered_map<string, Transaction *> allTxnRcvd;
+
+    Block *lastBlock;
 
     BlockChain() {}
 
@@ -48,29 +47,32 @@ public:
         {
             // remove transactions from the pending set
             for (Transaction *txn : block->transactions)
+            {
+
                 if (pendingTxns.count(txn->txnID))
                     pendingTxns.erase(txn->txnID);
+            }
         }
         else
         {
             // New Longest Chain : recompute pending txn set
 
             // set of all transactions
-            // for (auto &it : allTxnRcvd)
-            //     pendingTxns.insert(it.first);
+            for (auto &it : allTxnRcvd)
+                pendingTxns.insert(it.first);
 
             // filter the set, by traversing the chain
-            // Block *temp = block;
-            // while (temp->blockID != "0")
-            // {
-            //     for (Transaction *txn : block->transactions)
-            //     {
-            //         if (pendingTxns.count(txn->txnID))
-            //             pendingTxns.erase(txn->txnID);
-            //     }
+            Block *temp = block;
+            while (temp->blockID != "0")
+            {
+                for (Transaction *txn : block->transactions)
+                {
+                    if (pendingTxns.count(txn->txnID))
+                        pendingTxns.erase(txn->txnID);
+                }
 
-            //     temp = allBlocks.find(temp->prevBlockID)->second;
-            // }
+                temp = allBlocks[temp->prevBlockID];
+            }
         }
 
         lastBlock = block;
@@ -79,7 +81,14 @@ public:
     void addBlock(Block *block)
     {
         int minerID = block->minerID;
-        vector<int> prevBalance = vector<int>(allBlocks.find(block->prevBlockID)->second->balance);
+
+        if (!allBlocks.count(block->prevBlockID))
+        {
+            cout << "Parent Block Absent. Chain length: " << block->chainLen << endl;
+            exit(1);
+        }
+
+        vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
         vector<int> nextBalance = block->balance;
 
         // simulating all transactions so that prevBalance becomes current block's balance
@@ -94,7 +103,10 @@ public:
         // validating
         for (int i = 0; i < prevBalance.size(); i++)
             if (prevBalance[i] != nextBalance[i])
+            {
+                cout << "Invalid Block\n";
                 return;
+            }
 
         // validation successful
         allBlocks.insert({block->blockID, block});
@@ -102,6 +114,8 @@ public:
         // update longest chain
         if (lastBlock->chainLen < block->chainLen)
             updateLongestChain(block);
+        else
+            cout << "FORK\n";
     }
 };
 
@@ -112,7 +126,7 @@ public:
     bool fastLink, fastCPU;
     string prevTxnID;
     vector<Node *> edges;
-    vector<int> propDelay;
+    vector<double> propDelay;
 
     BlockChain blockchain;
 
@@ -125,8 +139,7 @@ public:
 class Event
 {
 public:
-    // 0 -> trans generated, 1 -> trans received, 2 -> block generated, 3 -> block recived, 4 -> puzzle solved (transmit block)
-    int type;
+    int type;         // 0 -> txn generated, 1 -> txn received, 2 -> block generated, 3 -> block recived
     double timestamp; // in seconds
     Node *node;
 

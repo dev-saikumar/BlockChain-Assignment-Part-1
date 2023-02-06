@@ -1,14 +1,21 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-string generateUID()
+string get_uuid()
 {
-    const char *chars = "0123456789abcdef";
+    static random_device dev;
+    static mt19937 rng(dev());
+
+    uniform_int_distribution<int> dist(0, 15);
+
+    const char *v = "0123456789abcdef";
+
     string res;
-
     for (int i = 0; i < 16; i++)
-        res += chars[rand() % 16];
-
+    {
+        res += v[dist(rng)];
+        res += v[dist(rng)];
+    }
     return res;
 }
 
@@ -80,7 +87,7 @@ void generateGraph(vector<Node *> &miners, int n)
                     miners[r]->edges.push_back(miners[i]);
 
                     // setting pij
-                    int propDelay = randomUniform(10, 500);
+                    double propDelay = randomUniform(10, 500) / 1000.0; // converting ms -> s
                     miners[i]->propDelay.push_back(propDelay);
                     miners[r]->propDelay.push_back(propDelay);
                 }
