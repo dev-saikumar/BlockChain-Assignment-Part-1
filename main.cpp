@@ -100,6 +100,24 @@ public:
 
             cout << " Chain Length: " << len << " Balance: " << node->blockchain->lastBlock->balance[node->id] << endl;
         }
+
+        // int count = 1;
+        // Node *node0 = miners[0];
+        // unordered_map<string, int> edgeList;
+        // edgeList.insert({"0", 0});
+        // for(Node *node: miners)
+        // for (auto it : node0->blockchain->allBlocks)
+        // {
+        //     Block *block = it.second;
+        //     if (edgeList.find(block->prevBlockID) == edgeList.end())
+        //         edgeList.insert({block->prevBlockID, count++});
+
+        //     if (edgeList.find(block->blockID) == edgeList.end())
+        //         edgeList.insert({block->blockID, count++});
+
+        //     cout << edgeList[block->prevBlockID] << " -> " << edgeList[block->blockID] << endl
+        //          << "\t";
+        // }
     }
 
     void floodTxn(Node *node, Transaction *txn, double timestamp)
@@ -248,10 +266,10 @@ public:
 
     void handleBlkRcv(BlockEvent *e)
     {
-        Node *node = e->node;
+        BlockChain *blockchain = e->node->blockchain;
         Block *block = e->block;
 
-        if (node->blockchain->allBlocks.count(block->blockID)) // duplicate block received
+        if (blockchain->allBlocks.count(block->blockID)) // duplicate block received
             return;
 
         addBlock(e);
@@ -262,6 +280,7 @@ public:
         unordered_set<string> &pendingTxns = blockchain->pendingTxns;
         unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
         unordered_map<string, Transaction *> &allTxnRcvd = blockchain->allTxnRcvd;
+
         // Case 1: Chain Extension
         if (block->prevBlockID == blockchain->lastBlock->blockID)
         {
@@ -305,11 +324,13 @@ public:
         unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
         unordered_map<string, Transaction *> &allTxnRcvd = blockchain->allTxnRcvd;
 
-        if (!allBlocks.count(block->prevBlockID))
+        allBlocks.insert({block->blockID, block});
+
+        if (allBlocks.find(block->prevBlockID) == allBlocks.end())
         {
-            // FIX
             cout << "Parent Block Absent" << endl;
-            exit(1);
+            blockchain->parentLessBlocks.insert(block->blockID);
+            return;
         }
 
         vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
@@ -317,7 +338,6 @@ public:
 
         // simulating all transactions
         prevBalance[block->minerID] += 50; // adding coinbase
-
         for (Transaction *txn : block->transactions)
         {
             // transaction missing
@@ -333,24 +353,50 @@ public:
 
         // validating
         for (int i = 0; i < prevBalance.size(); i++)
-        {
             if (prevBalance[i] != nextBalance[i] || nextBalance[i] < 0)
-            {
-                // cout << "Invalid Block\n";
-                return;
-            }
-        }
+                return; // invalid block
 
-        // validation successful
-        allBlocks.insert({block->blockID, block});
-
-        // update longest chain
+        // validation successful, update longest chain if needed
         if (blockchain->lastBlock->chainLen < block->chainLen)
             updateLongestChain(blockchain, block);
         else
             cout << "FORK\n";
 
         floodBlock(node, block, e->timestamp);
+        checkParentLessBlocks(node, e->timestamp);
+    }
+
+    void checkParentLessBlocks(Node *node, double timestamp)
+    {
+        BlockChain *blockchain = node->blockchain;
+        unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
+        vector<string> processed;
+
+        for (auto &blockID : blockchain->parentLessBlocks)
+        {
+            Block *block = allBlocks[blockID];
+            if (allBlocks.find(block->prevBlockID) == allBlocks.end())
+                continue;
+
+            processed.push_back(blockID);
+
+            vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
+            vector<int> &nextBalance = block->balance;
+
+            // validating
+            for (int i = 0; i < prevBalance.size(); i++)
+                if (prevBalance[i] != nextBalance[i] || nextBalance[i] < 0)
+                    continue; // invalid block
+
+            // validation successful, update longest chain if needed
+            if (blockchain->lastBlock->chainLen < block->chainLen)
+                updateLongestChain(blockchain, block);
+
+            floodBlock(node, block, timestamp);
+        }
+
+        for (string &blockID : processed)
+            blockchain->parentLessBlocks.erase(blockID);
     }
 };
 
@@ -366,7 +412,7 @@ int main(int argc, char **argv)
 
     int n = stoi(argv[1]), z0 = stoi(argv[2]), z1 = stoi(argv[3]), t_blk = stoi(argv[4]), t_txn = stoi(argv[5]);
     P2P p2pSim(n, z0, z1, t_blk, t_txn);
-    p2pSim.simulate(500000); // simulate 500000 events
+    p2pSim.simulate(1000000); // simulate 500000 events
 
     return 0;
 }

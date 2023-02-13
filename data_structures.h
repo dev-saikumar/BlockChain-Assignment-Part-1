@@ -27,6 +27,7 @@ public:
     unordered_map<string, Block *> allBlocks;
     unordered_set<string> pendingTxns;
     unordered_map<string, Transaction *> allTxnRcvd;
+    unordered_set<string> parentLessBlocks;
 
     int minerID, balanceLeft;
     Block *lastBlock;
