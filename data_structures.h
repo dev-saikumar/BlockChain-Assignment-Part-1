@@ -28,94 +28,17 @@ public:
     unordered_set<string> pendingTxns;
     unordered_map<string, Transaction *> allTxnRcvd;
 
+    int minerID, balanceLeft;
     Block *lastBlock;
 
     BlockChain() {}
 
-    BlockChain(int n)
+    BlockChain(int n, int minerID) : minerID(minerID), balanceLeft(0)
     {
         Block *genesis = new Block("0", "0", -1, 1);
         genesis->balance = vector<int>(n, 0);
         allBlocks.insert({genesis->blockID, genesis});
         lastBlock = genesis;
-    }
-
-    void updateLongestChain(Block *block)
-    {
-        // Case 1: Chain Extension
-        if (block->prevBlockID == lastBlock->blockID)
-        {
-            // remove transactions from the pending set
-            for (Transaction *txn : block->transactions)
-            {
-
-                if (pendingTxns.count(txn->txnID))
-                    pendingTxns.erase(txn->txnID);
-            }
-        }
-        else
-        {
-            // New Longest Chain : recompute pending txn set
-
-            // set of all transactions
-            for (auto &it : allTxnRcvd)
-                pendingTxns.insert(it.first);
-
-            // filter the set, by traversing the chain
-            Block *temp = block;
-            while (temp->blockID != "0")
-            {
-                for (Transaction *txn : block->transactions)
-                {
-                    if (pendingTxns.count(txn->txnID))
-                        pendingTxns.erase(txn->txnID);
-                }
-
-                temp = allBlocks[temp->prevBlockID];
-            }
-        }
-
-        lastBlock = block;
-    }
-
-    void addBlock(Block *block)
-    {
-        int minerID = block->minerID;
-
-        if (!allBlocks.count(block->prevBlockID))
-        {
-            cout << "Parent Block Absent. Chain length: " << block->chainLen << endl;
-            exit(1);
-        }
-
-        vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
-        vector<int> nextBalance = block->balance;
-
-        // simulating all transactions so that prevBalance becomes current block's balance
-        prevBalance[minerID] += 50; // adding coinbase
-
-        for (Transaction *txn : block->transactions)
-        {
-            prevBalance[txn->from_id] -= txn->amount;
-            prevBalance[txn->to_id] += txn->amount;
-        }
-
-        // validating
-        for (int i = 0; i < prevBalance.size(); i++)
-            if (prevBalance[i] != nextBalance[i])
-            {
-                cout << "Invalid Block\n";
-                return;
-            }
-
-        // validation successful
-        allBlocks.insert({block->blockID, block});
-
-        // update longest chain
-        if (lastBlock->chainLen < block->chainLen)
-            updateLongestChain(block);
-        else
-            cout << "FORK\n";
     }
 };
 
@@ -125,21 +48,22 @@ public:
     int id;
     bool fastLink, fastCPU;
     string prevTxnID;
+
     vector<Node *> edges;
     vector<double> propDelay;
 
-    BlockChain blockchain;
+    BlockChain *blockchain;
 
-    Node(int id, bool fastLink, bool fastCPU, int n) : id(id), fastLink(fastLink), fastCPU(fastCPU)
+    Node(int id, bool fastLink, bool fastCPU, int n) : id(id), fastLink(fastLink), fastCPU(fastCPU), blockchain()
     {
-        blockchain = BlockChain(n);
+        blockchain = new BlockChain(n, id);
     }
 };
 
 class Event
 {
 public:
-    int type;         // 0 -> txn generated, 1 -> txn received, 2 -> block generated, 3 -> block recived
+    int type;
     double timestamp; // in seconds
     Node *node;
 
