@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
-#include "data_structures.h"
-#include "utility.cpp" // declare header and include
+#include "data_structures.cpp"
+#include "utility.cpp"
 
 #define TXN_GEN 0
 #define TXN_RCV 1
@@ -51,39 +51,26 @@ public:
 
     void simulate(int eventCount)
     {
-        int txnGen = 0, txnRcv = 0, blkGen = 0, blkRcv = 0; // event count for each type
         while (!eventQueue.empty() && eventCount--)
         {
             Event *e = eventQueue.top();
 
-            switch (e->type)
-            {
-            case TXN_GEN:
+            if (e->type == TXN_GEN)
                 handleTxnGen((TxnEvent *)e);
-                txnGen++;
-                break;
-            case TXN_RCV:
+            else if (e->type == TXN_RCV)
                 handleTxnRcv((TxnEvent *)e);
-                txnRcv++;
-                break;
-            case BLK_GEN:
+            else if (e->type == BLK_GEN)
                 handleBlkGen((BlockEvent *)e);
-                blkGen++;
-                break;
-            case BLK_RCV:
+            else if (e->type == BLK_RCV)
                 handleBlkRcv((BlockEvent *)e);
-                blkRcv++;
-                break;
-            default:
-                cout << "Unexpected Error" << endl; // should never come here
-                exit(1);
-            }
+            else
+                exit(1); // should be unreachable
 
             eventQueue.pop();
             delete e;
         }
 
-        cout << "TXN_GEN: " << txnGen << " TXN_RCV: " << txnRcv << " BLK_GEN: " << blkGen << " BLK_RCV: " << blkRcv << endl;
+        // Output the results of the simulation
 
         for (Node *node : miners)
         {
@@ -94,30 +81,29 @@ public:
             while (block->blockID != "0")
             {
                 len++;
-                // cout << block->transactions.size() << " ";
+                cout << block->transactions.size() << " ";
                 block = node->blockchain->allBlocks[block->prevBlockID];
             }
 
             cout << " Chain Length: " << len << " Balance: " << node->blockchain->lastBlock->balance[node->id] << endl;
         }
 
-        // int count = 1;
-        // Node *node0 = miners[0];
-        // unordered_map<string, int> edgeList;
-        // edgeList.insert({"0", 0});
-        // for(Node *node: miners)
-        // for (auto it : node0->blockchain->allBlocks)
-        // {
-        //     Block *block = it.second;
-        //     if (edgeList.find(block->prevBlockID) == edgeList.end())
-        //         edgeList.insert({block->prevBlockID, count++});
+        Node *node = miners[0];
+        int count = 1;
+        unordered_map<string, int> map;
+        map.insert({"0", 0});
 
-        //     if (edgeList.find(block->blockID) == edgeList.end())
-        //         edgeList.insert({block->blockID, count++});
+        for (auto it : node->blockchain->allBlocks)
+        {
+            Block *block = it.second;
+            if (map.find(block->prevBlockID) == map.end())
+                map.insert({block->prevBlockID, count++});
 
-        //     cout << edgeList[block->prevBlockID] << " -> " << edgeList[block->blockID] << endl
-        //          << "\t";
-        // }
+            if (map.find(block->blockID) == map.end())
+                map.insert({block->blockID, count++});
+
+            cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
+        }
     }
 
     void floodTxn(Node *node, Transaction *txn, double timestamp)
@@ -129,8 +115,8 @@ public:
         {
             Node *destNode = edges[i];
 
-            // cij = linkSpeed (in bits/sec), pij = pDelay(propagation delay), tDelay(transmission delay) = msg size/cij
-            // queueing delay (at source node) = dij = chosen from exponential dist with mean 96kbits/cij
+            /* cij = linkSpeed (in bits/sec), pij = pDelay(propagation delay), tDelay(transmission delay) = msg size/cij
+               queueing delay (at source node) = dij = chosen from exponential dist with mean 96kbits/cij */
             double linkSpeed = (node->fastLink && destNode->fastLink ? fastLinkSpeed : slowLinkSpeed) * 1000000; // in bits
             double pDelay = propDelay[i], tDelay = TXN_SIZE / linkSpeed;                                         // in seconds
             double qDelay = randomExponential(96000 / linkSpeed);
@@ -165,31 +151,26 @@ public:
         Node *node = e->node;
         BlockChain *blockchain = node->blockchain;
 
-        if (blockchain->balanceLeft < 10) // insufficient balance
+        if (node->balanceLeft < 10)
         {
             TxnEvent *txnGen = new TxnEvent(TXN_GEN, node, e->timestamp + randomExponential(t_txn), NULL);
             eventQueue.push(txnGen);
             return;
         }
 
-        int to;
+        int to_id;
         do
         {
-            to = randomUniform(0, n - 1);
-        } while (node->id == to);
+            to_id = randomUniform(0, n - 1);
+        } while (node->id == to_id);
 
-        // FIX
-        int amount = randomUniform(1, blockchain->balanceLeft / 10);
-        // int amount = randomUniform(1, 1);
-
-        blockchain->balanceLeft -= amount;
-        Transaction *txn = new Transaction(get_uuid(), node->id, to, amount);
+        int amount = randomUniform(1, node->balanceLeft / 10);
+        node->balanceLeft -= amount;
+        Transaction *txn = new Transaction(get_uuid(), node->id, to_id, amount);
 
         blockchain->pendingTxns.insert(txn->txnID);
         blockchain->allTxnRcvd.insert({txn->txnID, txn});
         floodTxn(node, txn, e->timestamp);
-
-        node->prevTxnID = txn->txnID;
 
         // new event for next transaction generation
         TxnEvent *txnGen = new TxnEvent(TXN_GEN, node, e->timestamp + randomExponential(t_txn), NULL);
@@ -201,16 +182,14 @@ public:
         Node *node = e->node;
         Transaction *txn = e->txn;
         BlockChain *blockchain = node->blockchain;
+
         // already received, don't flood - prevents looping
         if (blockchain->allTxnRcvd.count(txn->txnID))
             return;
 
         // validate the transaction
         if (blockchain->lastBlock->balance[txn->from_id] < txn->amount)
-        {
-            cout << "Invalid Transaction\n";
             return;
-        }
 
         blockchain->pendingTxns.insert(txn->txnID);
         blockchain->allTxnRcvd.insert({txn->txnID, txn});
@@ -258,7 +237,7 @@ public:
             floodBlock(node, newBlock, e->timestamp);
         }
 
-        // create new block
+        // new block generation event
         double timestamp = e->timestamp + randomExponential(t_blk / (node->fastCPU ? fastCPU : slowCPU));
         BlockEvent *blockGen = new BlockEvent(BLK_GEN, node, timestamp, createBlock(node));
         eventQueue.push(blockGen);
@@ -273,6 +252,61 @@ public:
             return;
 
         addBlock(e);
+    }
+
+    void addBlock(BlockEvent *e)
+    {
+        Node *node = e->node;
+        Block *block = e->block;
+        BlockChain *blockchain = node->blockchain;
+        unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
+        unordered_map<string, Transaction *> &allTxnRcvd = blockchain->allTxnRcvd;
+
+        allBlocks.insert({block->blockID, block});
+
+        // Check if parent block is present
+        if (allBlocks.find(block->prevBlockID) == allBlocks.end())
+        {
+            blockchain->parentLessBlocks.insert(block->blockID);
+            return;
+        }
+
+        vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
+        vector<int> &nextBalance = block->balance;
+
+        // simulating all transactions
+        prevBalance[block->minerID] += 50; // adding coinbase
+        for (Transaction *txn : block->transactions)
+        {
+            // new transaction rcvd
+            if (allTxnRcvd.find(txn->txnID) == allTxnRcvd.end())
+            {
+                allTxnRcvd.insert({txn->txnID, txn});
+                floodTxn(miners[blockchain->minerID], txn, e->timestamp);
+            }
+
+            prevBalance[txn->from_id] -= txn->amount;
+            prevBalance[txn->to_id] += txn->amount;
+        }
+
+        // validating the block
+        for (int i = 0; i < prevBalance.size(); i++)
+        {
+            if (prevBalance[i] != nextBalance[i] || nextBalance[i] < 0)
+            {
+                blockchain->invalidBlocks.insert(block->blockID);
+                allBlocks.erase(block->blockID);
+                return; // invalid block
+            }
+        }
+
+        // validation successful, update longest chain if needed
+        if (blockchain->lastBlock->chainLen < block->chainLen)
+            updateLongestChain(blockchain, block);
+        // else cout << "FORK\n";
+
+        floodBlock(node, block, e->timestamp);
+        checkParentLessBlocks(node, e->timestamp);
     }
 
     void updateLongestChain(BlockChain *blockchain, Block *block)
@@ -293,8 +327,8 @@ public:
         }
         else
         {
-            // New Longest Chain : recompute pendingTxn set
-            // constructing set of all transactions received
+            // Case 2: new longest Chain: recompute pendingTxn set
+            // pendingTxns will hold set of all transactions received
             for (auto &it : allTxnRcvd)
                 pendingTxns.insert(it.first);
 
@@ -312,70 +346,30 @@ public:
             }
         }
 
-        blockchain->balanceLeft = block->balance[blockchain->minerID];
+        miners[blockchain->minerID]->balanceLeft = block->balance[blockchain->minerID];
         blockchain->lastBlock = block;
-    }
-
-    void addBlock(BlockEvent *e)
-    {
-        Node *node = e->node;
-        Block *block = e->block;
-        BlockChain *blockchain = node->blockchain;
-        unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
-        unordered_map<string, Transaction *> &allTxnRcvd = blockchain->allTxnRcvd;
-
-        allBlocks.insert({block->blockID, block});
-
-        if (allBlocks.find(block->prevBlockID) == allBlocks.end())
-        {
-            cout << "Parent Block Absent" << endl;
-            blockchain->parentLessBlocks.insert(block->blockID);
-            return;
-        }
-
-        vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
-        vector<int> &nextBalance = block->balance;
-
-        // simulating all transactions
-        prevBalance[block->minerID] += 50; // adding coinbase
-        for (Transaction *txn : block->transactions)
-        {
-            // transaction missing
-            if (allTxnRcvd.find(txn->txnID) == allTxnRcvd.end())
-            {
-                allTxnRcvd.insert({txn->txnID, txn});
-                floodTxn(miners[blockchain->minerID], txn, e->timestamp);
-            }
-
-            prevBalance[txn->from_id] -= txn->amount;
-            prevBalance[txn->to_id] += txn->amount;
-        }
-
-        // validating
-        for (int i = 0; i < prevBalance.size(); i++)
-            if (prevBalance[i] != nextBalance[i] || nextBalance[i] < 0)
-                return; // invalid block
-
-        // validation successful, update longest chain if needed
-        if (blockchain->lastBlock->chainLen < block->chainLen)
-            updateLongestChain(blockchain, block);
-        else
-            cout << "FORK\n";
-
-        floodBlock(node, block, e->timestamp);
-        checkParentLessBlocks(node, e->timestamp);
     }
 
     void checkParentLessBlocks(Node *node, double timestamp)
     {
         BlockChain *blockchain = node->blockchain;
         unordered_map<string, Block *> &allBlocks = blockchain->allBlocks;
+        unordered_set<string> &invalidBlocks = blockchain->invalidBlocks;
         vector<string> processed;
 
         for (auto &blockID : blockchain->parentLessBlocks)
         {
             Block *block = allBlocks[blockID];
-            if (allBlocks.find(block->prevBlockID) == allBlocks.end())
+            if (invalidBlocks.find(block->prevBlockID) != invalidBlocks.end())
+            {
+                // this block is also invalid
+                blockchain->invalidBlocks.insert(block->blockID);
+                allBlocks.erase(block->blockID);
+                processed.push_back(blockID);
+                continue;
+            }
+
+            if (allBlocks.find(block->prevBlockID) == allBlocks.end()) // parent block still absent
                 continue;
 
             processed.push_back(blockID);
@@ -383,10 +377,16 @@ public:
             vector<int> prevBalance = vector<int>(allBlocks[block->prevBlockID]->balance);
             vector<int> &nextBalance = block->balance;
 
-            // validating
+            // validating the block
             for (int i = 0; i < prevBalance.size(); i++)
+            {
                 if (prevBalance[i] != nextBalance[i] || nextBalance[i] < 0)
+                {
+                    blockchain->invalidBlocks.insert(block->blockID);
+                    allBlocks.erase(block->blockID);
                     continue; // invalid block
+                }
+            }
 
             // validation successful, update longest chain if needed
             if (blockchain->lastBlock->chainLen < block->chainLen)
@@ -404,15 +404,17 @@ int main(int argc, char **argv)
 {
     srand(time(NULL));
 
-    if (argc < 6)
+    if (argc < 7)
     {
-        cout << "Invalid Arguments. Usage: ./main n z0 z1 t_blk t_txn" << endl;
+        cout << "Invalid Arguments. Usage: ./main n z0 z1 t_blk t_txn eventCount" << endl;
         exit(1);
     }
 
-    int n = stoi(argv[1]), z0 = stoi(argv[2]), z1 = stoi(argv[3]), t_blk = stoi(argv[4]), t_txn = stoi(argv[5]);
+    int n = stoi(argv[1]), z0 = stoi(argv[2]), z1 = stoi(argv[3]);
+    int t_blk = stoi(argv[4]), t_txn = stoi(argv[5]), eventCount = stoi(argv[6]);
+
     P2P p2pSim(n, z0, z1, t_blk, t_txn);
-    p2pSim.simulate(1000000); // simulate 500000 events
+    p2pSim.simulate(eventCount); // simulate <eventCount> events
 
     return 0;
 }

@@ -13,8 +13,8 @@ public:
 class Block
 {
 public:
-    string prevBlockID, blockID;
     int minerID, chainLen;
+    string prevBlockID, blockID;
     vector<Transaction *> transactions;
     vector<int> balance;
 
@@ -24,17 +24,17 @@ public:
 class BlockChain
 {
 public:
-    unordered_map<string, Block *> allBlocks;
-    unordered_set<string> pendingTxns;
-    unordered_map<string, Transaction *> allTxnRcvd;
-    unordered_set<string> parentLessBlocks;
+    int minerID;
+    unordered_map<string, Block *> allBlocks;        // set of all valid blocks received
+    unordered_set<string> pendingTxns;               // txns not in blockchain
+    unordered_map<string, Transaction *> allTxnRcvd; // set of all txns received
+    unordered_set<string> parentLessBlocks, invalidBlocks;
 
-    int minerID, balanceLeft;
     Block *lastBlock;
 
     BlockChain() {}
 
-    BlockChain(int n, int minerID) : minerID(minerID), balanceLeft(0)
+    BlockChain(int n, int minerID) : minerID(minerID)
     {
         Block *genesis = new Block("0", "0", -1, 1);
         genesis->balance = vector<int>(n, 0);
@@ -46,16 +46,15 @@ public:
 class Node
 {
 public:
-    int id;
+    int id, balanceLeft;
     bool fastLink, fastCPU;
-    string prevTxnID;
 
     vector<Node *> edges;
     vector<double> propDelay;
 
     BlockChain *blockchain;
 
-    Node(int id, bool fastLink, bool fastCPU, int n) : id(id), fastLink(fastLink), fastCPU(fastCPU), blockchain()
+    Node(int id, bool fastLink, bool fastCPU, int n) : id(id), fastLink(fastLink), fastCPU(fastCPU), balanceLeft(0)
     {
         blockchain = new BlockChain(n, id);
     }

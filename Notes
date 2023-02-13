@@ -1,3 +1,0 @@
-Observations:
-1. Parent Block Might be absent if the block inter-arrival time is very less.
-2. Forking increases if inter-arrival time decreases.
