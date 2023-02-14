@@ -51,6 +51,7 @@ public:
 
     void simulate(int eventCount)
     {
+        cout << "Simulation Started." << endl;
         while (!eventQueue.empty() && eventCount--)
         {
             Event *e = eventQueue.top();
@@ -70,98 +71,14 @@ public:
             delete e;
         }
 
-        // Print Edges
+        cout << "Simulation Complete. Generating Graphs and Summary Data." << endl;
 
-        Node *node = miners[0];
-        int count = 1;
-        unordered_map<string, int> map;
-        map.insert({"0", 0});
-
-        for (auto it : node->blockchain->allBlocks)
-        {
-            Block *block = it.second;
-
-            if (map.find(block->prevBlockID) == map.end())
-                map.insert({block->prevBlockID, count++});
-
-            if (map.find(block->blockID) == map.end())
-                map.insert({block->blockID, count++});
-
-            // cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
-        }
-
-        for (auto it : node->blockchain->allBlocks)
-        {
-            cout << map[it.first] << " " << node->blockArrivalTime[it.first] << endl;
-        }
-
-        for (auto it : node->blockchain->allBlocks)
-        {
-            Block *block = it.second;
-            cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
-        }
-
-        // Miners Summary
-
+        // Simulation Output
         for (Node *node : miners)
         {
-            vector<int> blocksInChain(n);
-            int len = 1, totalBlocks = node->blockchain->allBlocks.size();
-            Block *block = node->blockchain->lastBlock;
-
-            while (block->blockID != "0")
-            {
-                len++;
-                // cout << block->transactions.size() << " "; // # of transaction in the block
-                block = node->blockchain->allBlocks[block->prevBlockID];
-                blocksInChain[block->minerID]++;
-            }
-
-            cout << fixed << setprecision(4) << "Fast CPU: " << node->fastCPU << " Fast Link: " << node->fastLink
-                 << " Total Blocks: " << totalBlocks << " Chain Length: " << len << " Contribution: " << blocksInChain[node->id] / double(len)
-                 << " Balance: " << node->blockchain->lastBlock->balance[node->id] << endl;
+            outputGraph(node);
+            minerSummary(node);
         }
-
-        // Chain Length info
-        cout << "\nBranches Summary: " << endl;
-
-        BlockChain *blockchain = miners[0]->blockchain;
-        unordered_map<string, Block *> allBlocks = blockchain->allBlocks, leaves = allBlocks;
-
-        for (auto &it : blockchain->allBlocks)
-            leaves.erase(it.second->prevBlockID);
-
-        int longest = 1;
-        Block *temp = blockchain->lastBlock;
-        leaves.erase(temp->blockID);
-        while (temp->blockID != "0")
-        {
-            longest++;
-            temp = allBlocks[temp->prevBlockID];
-            allBlocks.erase(temp->blockID);
-        }
-
-        unordered_map<int, int> branches;
-        branches[longest] = 1;
-
-        for (auto &it : leaves)
-        {
-            int branchLen = 0;
-            Block *temp = it.second;
-
-            while (true)
-            {
-                branchLen++;
-                if (!allBlocks.count(temp->prevBlockID))
-                    break;
-                temp = allBlocks[temp->prevBlockID];
-            }
-
-            branches[branchLen]++;
-        }
-
-        for (auto &it : branches)
-            cout << "Branch Length: " << it.first << " Count: " << it.second << endl;
     }
 
     void floodTxn(Node *node, Transaction *txn, double timestamp)
