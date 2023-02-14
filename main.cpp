@@ -72,12 +72,43 @@ public:
 
         // Print Edges
 
-        Node *node = miners[0];
+
+
+        // for(int i=0;i<miners.size();i++){
+        // int count = 1;
+        // unordered_map<string, int> map;
+        // map.insert({"0", 0});
+        // string filepath="visualization/graph"+to_string(i)+".gh";
+        // ofstream file(filepath);
+        // file<<"digraph G{\n";
+        
+        // for (auto it : miners[i]->blockchain->allBlocks)
+        // {
+        //     Block *block = it.second;
+        //     if (map.find(block->prevBlockID) == map.end())
+        //         map.insert({block->prevBlockID, count++});
+
+        //     if (map.find(block->blockID) == map.end())
+        //         map.insert({block->blockID, count++});
+
+        //     cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
+        //     file<< "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
+        // }
+
+        // }
+
+
+
+
+        for(int i=0;i<miners.size();i++){
+        
         int count = 1;
         unordered_map<string, int> map;
         map.insert({"0", 0});
-
-        for (auto it : node->blockchain->allBlocks)
+        string filepath="visualization/graph"+to_string(i)+".gh";
+        ofstream file(filepath);
+        file<<"digraph G{\n";
+        for (auto it : miners[i]->blockchain->allBlocks)
         {
             Block *block = it.second;
 
@@ -90,16 +121,20 @@ public:
             // cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
         }
 
-        for (auto it : node->blockchain->allBlocks)
+        for (auto it : miners[i]->blockchain->allBlocks)
         {
-            cout << map[it.first] << " " << node->blockArrivalTime[it.first] << endl;
+            file << map[it.first] << " [xlabel=\"" << miners[i]->blockArrivalTime[it.first] <<"\"]"<< endl;
         }
 
-        for (auto it : node->blockchain->allBlocks)
+        for (auto it : miners[i]->blockchain->allBlocks)
         {
             Block *block = it.second;
-            cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
+            file<< "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
         }
+        file<<"}";
+        file.close();
+        }
+        system("dot -Tpng -Nshape=rect visualization/graph1.gh -o graph.png");
 
         // Miners Summary
 
