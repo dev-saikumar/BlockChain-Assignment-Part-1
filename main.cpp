@@ -70,23 +70,7 @@ public:
             delete e;
         }
 
-        // Output the results of the simulation
-
-        for (Node *node : miners)
-        {
-            int len = 0;
-            Block *block = node->blockchain->lastBlock;
-            cout << "Miner " << node->blockchain->allBlocks.size() << ": ";
-
-            while (block->blockID != "0")
-            {
-                len++;
-                cout << block->transactions.size() << " ";
-                block = node->blockchain->allBlocks[block->prevBlockID];
-            }
-
-            cout << " Chain Length: " << len << " Balance: " << node->blockchain->lastBlock->balance[node->id] << endl;
-        }
+        // Print Edges
 
         Node *node = miners[0];
         int count = 1;
@@ -96,14 +80,88 @@ public:
         for (auto it : node->blockchain->allBlocks)
         {
             Block *block = it.second;
+
             if (map.find(block->prevBlockID) == map.end())
                 map.insert({block->prevBlockID, count++});
 
             if (map.find(block->blockID) == map.end())
                 map.insert({block->blockID, count++});
 
+            // cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
+        }
+
+        for (auto it : node->blockchain->allBlocks)
+        {
+            cout << map[it.first] << " " << node->blockArrivalTime[it.first] << endl;
+        }
+
+        for (auto it : node->blockchain->allBlocks)
+        {
+            Block *block = it.second;
             cout << "\t" << map[block->prevBlockID] << " -> " << map[block->blockID] << endl;
         }
+
+        // Miners Summary
+
+        for (Node *node : miners)
+        {
+            vector<int> blocksInChain(n);
+            int len = 1, totalBlocks = node->blockchain->allBlocks.size();
+            Block *block = node->blockchain->lastBlock;
+
+            while (block->blockID != "0")
+            {
+                len++;
+                // cout << block->transactions.size() << " "; // # of transaction in the block
+                block = node->blockchain->allBlocks[block->prevBlockID];
+                blocksInChain[block->minerID]++;
+            }
+
+            cout << fixed << setprecision(4) << "Fast CPU: " << node->fastCPU << " Fast Link: " << node->fastLink
+                 << " Total Blocks: " << totalBlocks << " Chain Length: " << len << " Contribution: " << blocksInChain[node->id] / double(len)
+                 << " Balance: " << node->blockchain->lastBlock->balance[node->id] << endl;
+        }
+
+        // Chain Length info
+        cout << "\nBranches Summary: " << endl;
+
+        BlockChain *blockchain = miners[0]->blockchain;
+        unordered_map<string, Block *> allBlocks = blockchain->allBlocks, leaves = allBlocks;
+
+        for (auto &it : blockchain->allBlocks)
+            leaves.erase(it.second->prevBlockID);
+
+        int longest = 1;
+        Block *temp = blockchain->lastBlock;
+        leaves.erase(temp->blockID);
+        while (temp->blockID != "0")
+        {
+            longest++;
+            temp = allBlocks[temp->prevBlockID];
+            allBlocks.erase(temp->blockID);
+        }
+
+        unordered_map<int, int> branches;
+        branches[longest] = 1;
+
+        for (auto &it : leaves)
+        {
+            int branchLen = 0;
+            Block *temp = it.second;
+
+            while (true)
+            {
+                branchLen++;
+                if (!allBlocks.count(temp->prevBlockID))
+                    break;
+                temp = allBlocks[temp->prevBlockID];
+            }
+
+            branches[branchLen]++;
+        }
+
+        for (auto &it : branches)
+            cout << "Branch Length: " << it.first << " Count: " << it.second << endl;
     }
 
     void floodTxn(Node *node, Transaction *txn, double timestamp)
@@ -263,6 +321,7 @@ public:
         unordered_map<string, Transaction *> &allTxnRcvd = blockchain->allTxnRcvd;
 
         allBlocks.insert({block->blockID, block});
+        node->blockArrivalTime.insert({block->blockID, e->timestamp});
 
         // Check if parent block is present
         if (allBlocks.find(block->prevBlockID) == allBlocks.end())

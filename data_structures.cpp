@@ -52,6 +52,8 @@ public:
     vector<Node *> edges;
     vector<double> propDelay;
 
+    unordered_map<string, double> blockArrivalTime;
+
     BlockChain *blockchain;
 
     Node(int id, bool fastLink, bool fastCPU, int n) : id(id), fastLink(fastLink), fastCPU(fastCPU), balanceLeft(0)
