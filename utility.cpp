@@ -1,5 +1,4 @@
 #include <bits/stdc++.h>
-
 using namespace std;
 
 // --------------------- Unique ID Generator ---------------------
@@ -20,7 +19,7 @@ string get_uuid()
     return res;
 }
 
-// --------------------- Random Generators ---------------------
+// --------------------- Random # Generators ---------------------
 
 int randomUniform(int min, int max)
 {
@@ -46,14 +45,16 @@ void outputGraph(Node *node)
     ofstream file(filepath);
     file << "digraph G{\nrankdir=\"LR\";";
 
-    // giving every block a integer id
+    // giving every block a integer id (string ids are too long)
     map.insert({"0", 0});
     for (auto &it : blockchain->allBlocks)
         map.insert({it.first, blockID++});
 
+    // arrival time of block is shown in the grapg
     for (auto it : blockchain->allBlocks)
         file << map[it.first] << " [xlabel=\"" << node->blockArrivalTime[it.first] << "\"]" << '\n';
 
+    // edges
     for (auto &it : blockchain->allBlocks)
     {
         Block *block = it.second;
@@ -78,6 +79,7 @@ void minerSummary(Node *node)
     string filepath = "Output/Summary/miner" + to_string(node->id) + ".csv";
     ofstream file(filepath);
 
+    // calc chain length and the miner's block in the longest chain
     while (block->blockID != "0")
     {
         chainLen++;
@@ -87,8 +89,8 @@ void minerSummary(Node *node)
 
     // Miner's Info
     file << "Miner ID, " << node->id << '\n';
-    file << "CPU Type, " << (node->fastCPU ? "Fast" : "Slow") << '\n';
-    file << "Link Type, " << (node->fastLink ? "Fast" : "Slow") << '\n';
+    file << "CPU Type, " << (node->isFastCPU ? "Fast" : "Slow") << '\n';
+    file << "Link Type, " << (node->isFastLink ? "Fast" : "Slow") << '\n';
     file << "Blocks Received, " << blockchain->allBlocks.size() << '\n';
     file << "Longest Chain Length, " << chainLen << '\n';
     file << "Miner's Block in the Longest Chain, " << to_string(myBlocks) + " (" + to_string(myBlocks * 100.0 / chainLen) + ")" << '\n';
@@ -101,6 +103,7 @@ void minerSummary(Node *node)
     for (auto &it : blockchain->allBlocks)
         leaves.erase(it.second->prevBlockID);
 
+    // removing the longest chain, it helps to find out the forks
     Block *temp = blockchain->lastBlock;
     leaves.erase(temp->blockID);
     while (temp->blockID != "0")
@@ -110,6 +113,7 @@ void minerSummary(Node *node)
     }
     unordered_map<int, int> forks;
 
+    // calc # of forks and fork lengths
     for (auto &it : leaves)
     {
         int forkLen = 0;
@@ -126,6 +130,7 @@ void minerSummary(Node *node)
         forks[forkLen]++;
     }
 
+    // Output the data to the file
     file << '\n';
     for (auto &it : forks)
         file << "Fork Length, " << it.first << " (" << it.second << ")\n";
@@ -162,13 +167,13 @@ void overallSummary(vector<Node *> &miners)
         blocksInChain[block->minerID]++;
     }
 
-    // Miner Summary
+    // Miner Summary, basic info for each miner
     for (Node *node : miners)
     {
         int totalBlocks = node->blockchain->allBlocks.size();
         Block *lastBlock = node->blockchain->lastBlock;
 
-        cout << "Miner " << node->id << (node->fastCPU ? ", Fast CPU" : ", Slow CPU") << (node->fastLink ? ", Fast Link" : ", Slow Link");
+        cout << "Miner " << node->id << (node->isFastCPU ? ", Fast CPU" : ", Slow CPU") << (node->isFastLink ? ", Fast Link" : ", Slow Link");
         cout << ", Total Blocks: " << totalBlocks << ", Chain Length: " << lastBlock->chainLen;
         cout << fixed << setprecision(2) << ", Contribution: " << blocksInChain[node->id] << " (" << (blocksInChain[node->id] * 100.0 / totalBlocks) << ")";
         cout << ", Balance: " << lastBlock->balance[node->id] << endl;
