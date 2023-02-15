@@ -1,6 +1,16 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+class Coinbase
+{
+public:
+    int minerID;
+    int amount;
+
+    Coinbase() {}
+    Coinbase(int minerID, int amount) : minerID(minerID), amount(amount) {}
+};
+
 class Transaction
 {
 public:
@@ -15,10 +25,13 @@ class Block
 public:
     int minerID, chainLen;
     string prevBlockID, blockID;
+
+    Coinbase coinbase;
+
     vector<Transaction *> transactions;
     vector<int> balance;
 
-    Block(string prevBlockID, string blockID, int minerID, int chainLen) : prevBlockID(prevBlockID), blockID(blockID), minerID(minerID), chainLen(chainLen) {}
+    Block(string prevBlockID, string blockID, int minerID, int chainLen, int amount) : prevBlockID(prevBlockID), blockID(blockID), minerID(minerID), chainLen(chainLen), coinbase(Coinbase(minerID, amount)) {}
 };
 
 class BlockChain
@@ -36,7 +49,7 @@ public:
 
     BlockChain(int n, int minerID) : minerID(minerID)
     {
-        Block *genesis = new Block("0", "0", -1, 1);
+        Block *genesis = new Block("0", "0", -1, 1, 0);
         genesis->balance = vector<int>(n, 0);
         allBlocks.insert({genesis->blockID, genesis});
         lastBlock = genesis;

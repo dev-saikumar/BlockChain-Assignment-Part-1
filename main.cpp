@@ -6,6 +6,7 @@
 #define TXN_RCV 1
 #define BLK_GEN 2
 #define BLK_RCV 3
+#define MINER_FEE 50
 #define TXN_SIZE 8192 // 1KB in bits
 
 using namespace std;
@@ -13,7 +14,7 @@ using namespace std;
 class P2P
 {
 private:
-    int n, z0, z1, t_blk, t_txn, fastLinkSpeed = 100, slowLinkSpeed = 5;
+    int n, z0, z1, t_blk, t_txn, fastLinkSpeed = 100, slowLinkSpeed = 5, fastCpuCount = 0;
     double slowCPU, fastCPU;
     vector<Node *> miners;
     priority_queue<Event *, vector<Event *>, eventCompare> eventQueue;
@@ -21,7 +22,6 @@ private:
 public:
     P2P(int n, int z0, int z1, int t_blk, int t_txn) : n(n), z0(z0), z1(z1), t_blk(t_blk), t_txn(t_txn)
     {
-        int fastCpuCount = 0;
         for (int i = 0; i < n; i++)
         {
             Node *newNode = new Node(i, randomUniform(0, 99) < z0, randomUniform(0, 99) < z1, n);
@@ -29,9 +29,8 @@ public:
             fastCpuCount += newNode->fastCPU;
         }
 
-        slowCPU = 1.0 / (n * ((100 - fastCpuCount) / 100.0 + 10 * (fastCpuCount / 100.0)));
+        slowCPU = 1.0 / ((n - fastCpuCount) + 10 * fastCpuCount);
         fastCPU = 10 * slowCPU;
-        cout << "Fast CPU Count: " << fastCpuCount << "  Slow CPU Hash Power: " << slowCPU << endl;
 
         generateGraph(miners, n);
 
@@ -51,7 +50,7 @@ public:
 
     void simulate(int eventCount)
     {
-        cout << "Simulation Started." << endl;
+        cout << "\nSimulation Started." << endl;
         while (!eventQueue.empty() && eventCount--)
         {
             Event *e = eventQueue.top();
@@ -74,12 +73,29 @@ public:
         cout << "Simulation Complete. Generating Graphs and Summary Data." << endl;
 
         // Simulation Output
-        system("mkdir Output && cd Output && mkdir Blockchain Summary");
-        for (Node *node : miners)
+        string info, graph;
+        cout << "Generate per-miner data (y/n): ";
+        cin >> info;
+        cout << "Generate per-miner tree (Note: graphviz must be installed, press n if not installed) (y/n): ";
+        cin >> graph;
+
+        if (info == "y" || info == "Y")
         {
-            outputGraph(node);
-            minerSummary(node);
+            system("mkdir Output && cd Output && mkdir Blockchain Summary");
+            for (Node *node : miners)
+            {
+                cout << "Processing miner " << node->id << endl;
+                if (graph == "y" || graph == "Y")
+                    outputGraph(node);
+                minerSummary(node);
+            }
         }
+
+        // Overall Network Summary
+        cout << "\nOverall Network Summary" << endl;
+        cout << "Fast CPU Miners: " << fastCpuCount << ", Slow CPU Hashing Power: " << slowCPU << endl;
+        cout << "Total Hashing Power: " << fastCpuCount * fastCPU + (n - fastCpuCount) * slowCPU << endl;
+        overallSummary(miners);
     }
 
     void floodTxn(Node *node, Transaction *txn, double timestamp)
@@ -176,7 +192,7 @@ public:
     Block *createBlock(Node *node)
     {
         Block *lastBlock = node->blockchain->lastBlock;
-        Block *newBlock = new Block(lastBlock->blockID, get_uuid(), node->id, lastBlock->chainLen + 1);
+        Block *newBlock = new Block(lastBlock->blockID, get_uuid(), node->id, lastBlock->chainLen + 1, MINER_FEE);
         newBlock->balance = vector<int>(lastBlock->balance);
 
         // add transactions to the block
@@ -193,7 +209,7 @@ public:
         }
 
         // adding mining fees (coinbase)
-        newBlock->balance[node->id] += 50;
+        newBlock->balance[node->id] += newBlock->coinbase.amount;
 
         return newBlock;
     }
@@ -252,7 +268,7 @@ public:
         vector<int> &nextBalance = block->balance;
 
         // simulating all transactions
-        prevBalance[block->minerID] += 50; // adding coinbase
+        prevBalance[block->minerID] += block->coinbase.amount; // adding coinbase
         for (Transaction *txn : block->transactions)
         {
             // new transaction rcvd
