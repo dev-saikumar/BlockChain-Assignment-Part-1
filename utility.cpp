@@ -42,7 +42,7 @@ void minerSummary(Node *node)
     Block *block = blockchain->lastBlock;
     int chainLen = 1, myBlocks = 0, myID = node->id, totalBlocks = blockchain->allBlocks.size();
 
-    string filepath = "Miner Summary/miner" + to_string(node->id) + ".txt";
+    string filepath = "Output/Summary/miner" + to_string(node->id) + ".txt";
     ofstream file(filepath);
 
     while (block->blockID != "0")
@@ -108,7 +108,7 @@ void outputGraph(Node *node)
     BlockChain *blockchain = node->blockchain;
     unordered_map<string, int> map;
 
-    string filepath = "Graph Data/graph" + to_string(node->id) + ".gh";
+    string filepath = "Output/Blockchain/graph" + to_string(node->id) + ".gh";
     ofstream file(filepath);
     file << "digraph G{\nrankdir=\"LR\";";
 
@@ -131,7 +131,7 @@ void outputGraph(Node *node)
     file << "}";
     file.close();
 
-    string graphPath = "dot -Tpng -Nshape=rect \"Graph Data\"/graph" + to_string(node->id) + ".gh -o Graph/graph" + to_string(node->id) + ".png";
+    string graphPath = "dot -Tpng -Nshape=rect Output/Blockchain/graph" + to_string(node->id) + ".gh -o Output/Blockchain/graph" + to_string(node->id) + ".png";
     system(graphPath.c_str());
 }
 
