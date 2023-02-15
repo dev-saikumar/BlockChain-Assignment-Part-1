@@ -74,6 +74,7 @@ public:
         cout << "Simulation Complete. Generating Graphs and Summary Data." << endl;
 
         // Simulation Output
+        system("mkdir Output && cd Output && mkdir Blockchain Summary");
         for (Node *node : miners)
         {
             outputGraph(node);
